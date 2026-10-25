@@ -1,0 +1,104 @@
+name: nexus-production
+
+x-app-environment: &app-environment
+  DATABASE_URL: postgresql://nexus:${POSTGRES_PASSWORD:?Generate .env.production first}@database:5432/nexus?schema=public
+  AUTH_SECRET: ${AUTH_SECRET:?Generate .env.production first}
+  APP_URL: https://${DOMAIN:?Set DOMAIN}
+  AUTH_URL: https://${DOMAIN:?Set DOMAIN}
+  AUTH_TRUST_HOST: "true"
+  TRUST_PROXY: "true"
+  UPLOAD_DIR: /app/uploads
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  MAIL_FROM: ${MAIL_FROM:-}
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+  STRIPE_PRICE_ID: ${STRIPE_PRICE_ID:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+  BILLING_REQUIRED: ${BILLING_REQUIRED:-false}
+
+services:
+  database:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_DB: nexus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate .env.production first}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexus"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  migrate:
+    image: nexus:${NEXUS_IMAGE_TAG:-local}
+    build: .
+    command: ["pnpm", "db:deploy"]
+    environment: *app-environment
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: "no"
+    healthcheck:
+      disable: true
+    logging: *logging
+  web:
+    image: nexus:${NEXUS_IMAGE_TAG:-local}
+    build: .
+    environment: *app-environment
+    restart: unless-stopped
+    init: true
+    volumes:
+      - uploads:/app/uploads
+    expose: ["3000"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      database:
+        condition: service_healthy
+    logging: *logging
+  worker:
+    image: nexus:${NEXUS_IMAGE_TAG:-local}
+    build: .
+    command: ["node", "scripts/worker.mjs"]
+    environment: *app-environment
+    restart: unless-stopped
+    init: true
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      database:
+        condition: service_healthy
+    logging: *logging
+  proxy:
+    image: caddy:2
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  database:
+  caddy_data:
+  caddy_config:
+  uploads:

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalDependencies": ["tooling/typescript/*.json"],
+  "tasks": {
+    "generate": {
+      "cache": false,
+      "outputs": []
+    },
+    "@nexus/database#build": {
+      "dependsOn": ["^build", "generate"],
+      "outputs": ["dist/**"]
+    },
+    "@nexus/database#typecheck": {
+      "dependsOn": ["^build", "generate"],
+      "outputs": []
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@nexus/web#test": {
+      "dependsOn": ["@nexus/shared#build", "@nexus/contracts#build"],
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

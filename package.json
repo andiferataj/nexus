@@ -1,0 +1,38 @@
+{
+  "name": "nexus",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "description": "Multi-tenant agency operations SaaS",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test && node --test scripts/test/*.test.mjs",
+    "test:e2e": "pnpm --filter @nexus/web test:e2e",
+    "check:domain": "turbo run build typecheck test --filter=@nexus/shared --filter=@nexus/contracts --filter=@nexus/core --filter=@nexus/auth",
+    "typecheck:ui": "pnpm --filter @nexus/web exec tsc --noEmit -p tsconfig.ui.json",
+    "db:generate": "pnpm --filter @nexus/database generate",
+    "db:validate": "pnpm --filter @nexus/database db:validate",
+    "db:migrate": "pnpm --filter @nexus/database db:migrate",
+    "db:deploy": "pnpm --filter @nexus/database db:deploy",
+    "dev:web": "pnpm --filter @nexus/web dev",
+    "setup:env": "node scripts/setup-env.mjs",
+    "setup:production": "node scripts/setup-production-env.mjs",
+    "release:check": "node scripts/verify-release.mjs",
+    "release:preflight": "node scripts/release-preflight.mjs",
+    "worker": "node scripts/worker.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:integration": "pnpm --filter @nexus/web test:integration",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1",
+    "turbo": "^2.5.0",
+    "typescript": "~5.8.3"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

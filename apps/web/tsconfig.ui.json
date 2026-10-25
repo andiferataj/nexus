@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false, "types": ["react", "react-dom"] },
+  "include": [
+    "src/components/icon.tsx",
+    "src/components/workspace-app.tsx",
+    "src/components/project-dialog.tsx",
+    "src/components/action-form.tsx",
+    "src/lib/workspace.ts",
+    "src/lib/form-state.ts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@nexus/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "pnpm run build && node --test test/*.test.mjs",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@nexus/contracts": "workspace:*",
+    "@nexus/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@nexus/typescript-config": "workspace:*",
+    "@types/node": "^24.0.0"
+  }
+}

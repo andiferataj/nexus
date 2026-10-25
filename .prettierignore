@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.next/
+.turbo/
+.cache/
+coverage/
+test-results/
+playwright-report/
+pnpm-lock.yaml
+.env
+.env.*

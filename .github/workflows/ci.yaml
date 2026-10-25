@@ -1,0 +1,74 @@
+name: Verify release
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: nexus
+          POSTGRES_PASSWORD: nexus_ci_only
+          POSTGRES_DB: nexus
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nexus -d nexus"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://nexus:nexus_ci_only@127.0.0.1:5432/nexus?schema=public
+      AUTH_SECRET: ci-only-not-a-production-secret-with-at-least-48-characters
+      APP_URL: http://127.0.0.1:3000
+      AUTH_URL: http://127.0.0.1:3000
+      AUTH_TRUST_HOST: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable && corepack prepare pnpm@10.33.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod
+      - run: pnpm db:generate && pnpm db:validate && pnpm db:deploy
+      - run: pnpm format:check
+      - run: pnpm typecheck --env-mode=loose && pnpm test
+      - run: pnpm build --env-mode=loose
+      - run: pnpm --filter @nexus/web exec playwright install --with-deps chromium
+      - name: Browser tests against the production build
+        run: |
+          pnpm --filter @nexus/web start --hostname 127.0.0.1 > /tmp/nexus-server.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health; then break; fi
+            sleep 2
+          done
+          curl --fail http://127.0.0.1:3000/api/health
+          pnpm test:e2e
+          pnpm test:integration
+        env:
+          NEXUS_TEST_BASE_URL: http://127.0.0.1:3000
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: verification-failure
+          path: |
+            apps/web/test-results
+            /tmp/nexus-server.log
+      - name: Validate deployment configuration
+        run: docker compose --env-file .env.production.example -f compose.production.yaml config --quiet
+      - name: Verify the container starts and connects to PostgreSQL
+        run: |
+          docker build --tag nexus:ci .
+          docker run --detach --name nexus-ci --network host -e DATABASE_URL -e AUTH_SECRET -e APP_URL=https://nexus.test -e AUTH_URL=https://nexus.test -e AUTH_TRUST_HOST=true -e UPLOAD_DIR=/app/uploads -e PORT=3001 nexus:ci
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3001/api/health; then break; fi
+            sleep 2
+          done
+          curl --fail http://127.0.0.1:3001/api/health || { docker logs nexus-ci; exit 1; }
+          docker stop nexus-ci

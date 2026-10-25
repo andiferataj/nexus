@@ -1,0 +1,14 @@
+{
+  "extends": "@nexus/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "baseUrl": "."
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules", "test", "playwright.config.ts"]
+}
